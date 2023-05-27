@@ -153,6 +153,8 @@ fn parse_uri(uri: &str) -> anyhow::Result<(String, String, String)> {
         for ch in rest[slash_idx2+1..].chars() {
             if ch != '/' && ch != '.' {
                 repo.push(ch);
+            } else {
+                break;
             }
         }
 
@@ -167,7 +169,10 @@ fn test_parse_uri() {
     let (domain, group, repo) = parse_uri("https://github.com/rust-lang/rust/").unwrap();
     assert_eq!((domain.as_str(), group.as_str(), repo.as_str()), ("github.com", "rust-lang", "rust"));
 
-    let (domain, group, repo) = parse_uri("git@github.com:rust-lang/rust/").unwrap();
+    let (domain, group, repo) = parse_uri("git@github.com:rust-lang/rust").unwrap();
+    assert_eq!((domain.as_str(), group.as_str(), repo.as_str()), ("github.com", "rust-lang", "rust"));
+
+    let (domain, group, repo) = parse_uri("git@github.com:rust-lang/rust.git").unwrap();
     assert_eq!((domain.as_str(), group.as_str(), repo.as_str()), ("github.com", "rust-lang", "rust"));
 }
 
