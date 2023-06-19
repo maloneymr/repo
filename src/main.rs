@@ -16,6 +16,8 @@ enum Cli {
 #[derive(Args, Debug)]
 struct CloneArgs {
     uri: String,
+    #[clap(short = 'l')]
+    link: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -39,6 +41,7 @@ fn do_clone(args: CloneArgs) -> anyhow::Result<()> {
 
     let target_dir = domain_user_dir.join(repo.clone());
     if !std::fs::metadata(&target_dir).is_err() {
+        println!("{}", target_dir.display());
         return Err(anyhow!("Error: Repo already exists"));
     }
 
@@ -47,7 +50,7 @@ fn do_clone(args: CloneArgs) -> anyhow::Result<()> {
     let mut child = Command::new("git")
         .arg("clone")
         .arg(args.uri)
-        .arg(repo)
+        .arg(repo.clone())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
@@ -85,7 +88,25 @@ fn do_clone(args: CloneArgs) -> anyhow::Result<()> {
         return Err(anyhow!("Error: Could not clone repo: Exist status {status}"));
     }
 
-    println!("{}", String::from_utf8_lossy(target_dir.to_str().ok_or_else(|| anyhow!("non-utf8 path"))?.as_bytes()));
+    let target_dir_path = String::from_utf8_lossy(target_dir.to_str().ok_or_else(|| anyhow!("non-utf8 path"))?.as_bytes());
+    println!("{target_dir_path}");
+
+    let projects_dir = projects_dir()?;
+    let link = projects_dir.join(repo);
+    let link_path = String::from_utf8_lossy(link.to_str().ok_or_else(|| anyhow!("non-utf8 path"))?.as_bytes());
+    println!("{link_path}");
+
+    let mut child = Command::new("ln")
+        .arg("-s")
+        .arg(&*target_dir_path)
+        .arg(&*link_path)
+        .spawn()?;
+
+    let status = child.wait()?;
+
+    if !status.success() {
+        return Err(anyhow!("Error: Could not link: Exist status {status}"));
+    }
 
     Ok(())
 }
@@ -107,7 +128,7 @@ fn projects_dir() -> anyhow::Result<PathBuf> {
         std::fs::create_dir_all(&projects_dir)?;
     }
 
-    Ok(home_dir)
+    Ok(projects_dir)
 }
 
 fn parse_uri(uri: &str) -> anyhow::Result<(String, String, String)> {
